@@ -20,45 +20,37 @@ This repository is the simplest way to bootstrap a [ChatKit](http://openai.githu
 npm install
 ```
 
-### 2. Create your environment file
-
-Copy the example file and fill in the required values:
-
-```bash
-cp .env.example .env.local
-```
-
-You can get your workflow id from the [Agent Builder](https://platform.openai.com/agent-builder) interface, after clicking "Publish":
-
-<img src="./public/docs/workflow.jpg" width=500 />
-
-You can get your OpenAI API key from the [OpenAI API Keys](https://platform.openai.com/api-keys) page.
-
-### 3. Configure ChatKit credentials
-
-Update `.env.local` with the variables that match your setup.
-
-- `OPENAI_API_KEY` — This must be an API key created **within the same org & project as your Agent Builder**. If you already have a different `OPENAI_API_KEY` env variable set in your terminal session, that one will take precedence over the key in `.env.local` one (this is how a Next.js app works). So, **please run `unset OPENAI_API_KEY` (`set OPENAI_API_KEY=` for Windows OS) beforehand**.
-- `NEXT_PUBLIC_CHATKIT_WORKFLOW_ID` — This is the ID of the workflow you created in [Agent Builder](https://platform.openai.com/agent-builder), which starts with `wf_...`
-- (optional) `CHATKIT_API_BASE` - This is a customizable base URL for the ChatKit API endpoint
-
-> Note: if your workflow is using a model requiring organization verification, such as GPT-5, make sure you verify your organization first. Visit your [organization settings](https://platform.openai.com/settings/organization/general) and click on "Verify Organization".
-
-### 4. Run the app
+### 2. Run the app
 
 ```bash
 npm run dev
 ```
 
-Visit `http://localhost:3000` and start chatting. Use the prompts on the start screen to verify your workflow connection, then customize the UI or prompt list in [`lib/config.ts`](lib/config.ts) and [`components/ChatKitPanel.tsx`](components/ChatKitPanel.tsx).
+### 3. Configure your API credentials
 
-### 5. Deploy your app
+When you first open the app at `http://localhost:3000`, you'll see a Settings panel. Enter your credentials:
+
+- **OpenAI API Key** — Get your key from the [OpenAI API Keys](https://platform.openai.com/api-keys) page. Must be created within the same org & project as your Agent Builder workflow.
+- **Workflow ID** — Get your workflow ID from the [Agent Builder](https://platform.openai.com/agent-builder) interface after clicking "Publish" (starts with `wf_...`).
+
+<img src="./public/docs/workflow.jpg" width=500 />
+
+Your credentials are stored in your browser's localStorage and never sent to any server except OpenAI's API.
+
+> Note: If your workflow uses a model requiring organization verification (e.g., GPT-5), verify your organization first at [organization settings](https://platform.openai.com/settings/organization/general).
+
+### 4. Deploy to Vercel
+
+This app is ready for Vercel deployment out of the box:
 
 ```bash
 npm run build
+vercel deploy
 ```
 
-Before deploying your app, you need to verify the domain by adding it to the [Domain allowlist](https://platform.openai.com/settings/organization/security/domain-allowlist) on your dashboard.
+Or connect your GitHub repo to Vercel for automatic deployments. No environment variables are required — users configure their own API keys in the browser.
+
+Before deploying, add your domain to the [Domain allowlist](https://platform.openai.com/settings/organization/security/domain-allowlist) on your OpenAI dashboard.
 
 ## Customization Tips
 

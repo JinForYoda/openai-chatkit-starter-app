@@ -1,5 +1,3 @@
-import { WORKFLOW_ID } from "@/lib/config";
-
 export const runtime = "edge";
 
 interface CreateSessionRequestBody {
@@ -23,14 +21,16 @@ export async function POST(request: Request): Promise<Response> {
   }
   let sessionCookie: string | null = null;
   try {
-    const openaiApiKey = process.env.OPENAI_API_KEY;
+    // Get API key from header (sent by client from localStorage)
+    const openaiApiKey = request.headers.get("x-openai-api-key");
     if (!openaiApiKey) {
       return new Response(
         JSON.stringify({
-          error: "Missing OPENAI_API_KEY environment variable",
+          error:
+            "Missing API key. Please configure your OpenAI API key in settings.",
         }),
         {
-          status: 500,
+          status: 400,
           headers: { "Content-Type": "application/json" },
         }
       );
@@ -40,14 +40,21 @@ export async function POST(request: Request): Promise<Response> {
     const { userId, sessionCookie: resolvedSessionCookie } =
       await resolveUserId(request);
     sessionCookie = resolvedSessionCookie;
-    const resolvedWorkflowId =
-      parsedBody?.workflow?.id ?? parsedBody?.workflowId ?? WORKFLOW_ID;
 
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[create-session] handling request", {
-        resolvedWorkflowId,
-        body: JSON.stringify(parsedBody),
-      });
+    // Get workflow ID from body (sent by client from localStorage)
+    const resolvedWorkflowId =
+      parsedBody?.workflow?.id ?? parsedBody?.workflowId;
+
+    if (!resolvedWorkflowId) {
+      return buildJsonResponse(
+        {
+          error:
+            "Missing workflow ID. Please configure your Workflow ID in settings.",
+        },
+        400,
+        { "Content-Type": "application/json" },
+        sessionCookie
+      );
     }
 
     if (!resolvedWorkflowId) {
@@ -79,13 +86,6 @@ export async function POST(request: Request): Promise<Response> {
         },
       }),
     });
-
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[create-session] upstream response", {
-        status: upstreamResponse.status,
-        statusText: upstreamResponse.statusText,
-      });
-    }
 
     const upstreamJson = (await upstreamResponse.json().catch(() => ({}))) as
       | Record<string, unknown>
