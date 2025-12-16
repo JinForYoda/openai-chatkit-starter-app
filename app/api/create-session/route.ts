@@ -1,9 +1,8 @@
 export const runtime = "edge";
 
 interface CreateSessionRequestBody {
-  workflow?: { id?: string | null } | null;
+  workflow?: { id?: string | null; version?: number | string | null } | null;
   scope?: { user_id?: string | null } | null;
-  workflowId?: string | null;
   chatkit_configuration?: {
     file_upload?: {
       enabled?: boolean;
@@ -41,9 +40,18 @@ export async function POST(request: Request): Promise<Response> {
       await resolveUserId(request);
     sessionCookie = resolvedSessionCookie;
 
-    // Get workflow ID from body (sent by client from localStorage)
-    const resolvedWorkflowId =
-      parsedBody?.workflow?.id ?? parsedBody?.workflowId;
+    // Get workflow ID from body
+    const resolvedWorkflowId = parsedBody?.workflow?.id;
+
+    const rawWorkflowVersion = parsedBody?.workflow?.version;
+    const resolvedWorkflowVersion =
+      typeof rawWorkflowVersion === "string" && rawWorkflowVersion.trim()
+        ? rawWorkflowVersion.trim()
+        : typeof rawWorkflowVersion === "number" &&
+          Number.isFinite(rawWorkflowVersion) &&
+          rawWorkflowVersion > 0
+        ? String(Math.floor(rawWorkflowVersion))
+        : null;
 
     if (!resolvedWorkflowId) {
       return buildJsonResponse(
@@ -51,15 +59,6 @@ export async function POST(request: Request): Promise<Response> {
           error:
             "Missing workflow ID. Please configure your Workflow ID in settings.",
         },
-        400,
-        { "Content-Type": "application/json" },
-        sessionCookie
-      );
-    }
-
-    if (!resolvedWorkflowId) {
-      return buildJsonResponse(
-        { error: "Missing workflow id" },
         400,
         { "Content-Type": "application/json" },
         sessionCookie
@@ -76,7 +75,10 @@ export async function POST(request: Request): Promise<Response> {
         "OpenAI-Beta": "chatkit_beta=v1",
       },
       body: JSON.stringify({
-        workflow: { id: resolvedWorkflowId },
+        workflow: {
+          id: resolvedWorkflowId,
+          version: resolvedWorkflowVersion ?? undefined,
+        },
         user: userId,
         chatkit_configuration: {
           file_upload: {

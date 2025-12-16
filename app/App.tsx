@@ -8,9 +8,17 @@ import { useApiKeys } from "@/hooks/useApiKeys";
 
 export default function App() {
   const { scheme, setScheme } = useColorScheme();
-  const { keys, isLoaded, hasValidKeys, setBothKeys, clearKeys } = useApiKeys();
+  const {
+    keys,
+    isLoaded,
+    hasValidKeys,
+    setBothKeys,
+    setWorkflowVersion,
+    clearKeys,
+  } = useApiKeys();
 
-  const handleWidgetAction = useCallback(async (action: FactAction) => {
+  const handleWidgetAction = useCallback(async (_action: FactAction) => {
+    void _action;
     // Handle widget actions (e.g., save facts)
   }, []);
 
@@ -28,16 +36,24 @@ export default function App() {
   }
   return (
     <main className="flex min-h-screen flex-col items-center justify-end bg-slate-100 dark:bg-slate-950">
-      <SettingsPanel keys={keys} onSave={setBothKeys} onClear={clearKeys} />
+      <SettingsPanel
+        keys={keys}
+        onSave={setBothKeys}
+        onWorkflowVersionChange={setWorkflowVersion}
+        onClear={clearKeys}
+      />
       {hasValidKeys && (
         <div className="mx-auto w-full max-w-5xl">
           <ChatKitPanel
-            key={`${keys.openaiApiKey}-${keys.workflowId}`}
+            key={`${keys.openaiApiKey}-${keys.workflowVersion ?? "latest"}-${
+              keys.workflowId
+            }`}
             theme={scheme}
             apiKeys={keys}
             onWidgetAction={handleWidgetAction}
             onResponseEnd={handleResponseEnd}
             onThemeRequest={setScheme}
+            onWorkflowVersionRollback={() => setWorkflowVersion(null)}
           />
         </div>
       )}

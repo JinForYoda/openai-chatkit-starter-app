@@ -25,6 +25,7 @@ type ChatKitPanelProps = {
   onWidgetAction: (action: FactAction) => Promise<void>;
   onResponseEnd: () => void;
   onThemeRequest: (scheme: ColorScheme) => void;
+  onWorkflowVersionRollback: () => void;
 };
 
 type ErrorState = {
@@ -50,6 +51,7 @@ export function ChatKitPanel({
   onWidgetAction,
   onResponseEnd,
   onThemeRequest,
+  onWorkflowVersionRollback,
 }: ChatKitPanelProps) {
   const processedFacts = useRef(new Set<string>());
   const [errors, setErrors] = useState<ErrorState>(() => createInitialErrors());
@@ -200,31 +202,55 @@ export function ChatKitPanel({
       }
 
       try {
-        const response = await fetch(CREATE_SESSION_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-openai-api-key": apiKeys.openaiApiKey,
-          },
-          body: JSON.stringify({
-            workflow: { id: apiKeys.workflowId },
-            chatkit_configuration: {
-              // enable attachments
-              file_upload: {
-                enabled: true,
-              },
+        const createSession = async (workflowVersionOverride?: string) => {
+          const response = await fetch(CREATE_SESSION_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-openai-api-key": apiKeys.openaiApiKey,
             },
-          }),
-        });
+            body: JSON.stringify({
+              workflow: {
+                id: apiKeys.workflowId,
+                version: workflowVersionOverride,
+              },
+              chatkit_configuration: {
+                // enable attachments
+                file_upload: {
+                  enabled: true,
+                },
+              },
+            }),
+          });
 
-        const raw = await response.text();
-        let data: Record<string, unknown> = {};
-        if (raw) {
-          try {
-            data = JSON.parse(raw) as Record<string, unknown>;
-          } catch {
-            // Failed to parse response
+          const raw = await response.text();
+          let data: Record<string, unknown> = {};
+          if (raw) {
+            try {
+              data = JSON.parse(raw) as Record<string, unknown>;
+            } catch {
+              // Failed to parse response
+            }
           }
+          return { response, data };
+        };
+
+        const requestedVersion =
+          apiKeys.workflowVersion === null
+            ? undefined
+            : String(apiKeys.workflowVersion);
+
+        let didRollback = false;
+        let { response, data } = await createSession(requestedVersion);
+
+        if (
+          response.status === 404 &&
+          apiKeys.workflowVersion !== null &&
+          !didRollback
+        ) {
+          didRollback = true;
+          onWorkflowVersionRollback();
+          ({ response, data } = await createSession(undefined));
         }
 
         if (!response.ok) {
@@ -254,7 +280,13 @@ export function ChatKitPanel({
         throw error instanceof Error ? error : new Error(detail);
       }
     },
-    [isWorkflowConfigured, isApiKeyConfigured, apiKeys, setErrorState]
+    [
+      isWorkflowConfigured,
+      isApiKeyConfigured,
+      apiKeys,
+      onWorkflowVersionRollback,
+      setErrorState,
+    ]
   );
 
   const chatkit = useChatKit({

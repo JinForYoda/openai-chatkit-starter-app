@@ -6,13 +6,20 @@ import type { ApiKeys } from "@/hooks/useApiKeys";
 interface SettingsPanelProps {
   keys: ApiKeys;
   onSave: (apiKey: string, workflowId: string) => void;
+  onWorkflowVersionChange?: (version: number | null) => void;
   onClear: () => void;
 }
 
-export function SettingsPanel({ keys, onSave, onClear }: SettingsPanelProps) {
+export function SettingsPanel({
+  keys,
+  onSave,
+  onWorkflowVersionChange,
+  onClear,
+}: SettingsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [workflowIdInput, setWorkflowIdInput] = useState("");
+  const [workflowVersionInput, setWorkflowVersionInput] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -21,17 +28,48 @@ export function SettingsPanel({ keys, onSave, onClear }: SettingsPanelProps) {
   useEffect(() => {
     setApiKeyInput(keys.openaiApiKey);
     setWorkflowIdInput(keys.workflowId);
+    setWorkflowVersionInput(
+      keys.workflowVersion ? String(keys.workflowVersion) : ""
+    );
     setIsOpen(!keys.openaiApiKey || !keys.workflowId);
     setMounted(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setWorkflowIdInput(keys.workflowId);
+  }, [keys.workflowId]);
+
+  useEffect(() => {
+    setWorkflowVersionInput(
+      keys.workflowVersion ? String(keys.workflowVersion) : ""
+    );
+  }, [keys.workflowVersion]);
 
   // Don't render until mounted to avoid hydration issues
   if (!mounted) {
     return null;
   }
 
+  const syncDraftFromKeys = () => {
+    setApiKeyInput(keys.openaiApiKey);
+    setWorkflowIdInput(keys.workflowId);
+    setWorkflowVersionInput(
+      keys.workflowVersion ? String(keys.workflowVersion) : ""
+    );
+  };
+
   const handleSave = () => {
+    const rawVersion = workflowVersionInput.trim();
+    const nextVersion = rawVersion ? Number(rawVersion) : null;
+    const resolvedVersion =
+      typeof nextVersion === "number" &&
+      Number.isFinite(nextVersion) &&
+      nextVersion > 0
+        ? Math.floor(nextVersion)
+        : null;
+
+    onWorkflowVersionChange?.(resolvedVersion);
     // Save both keys atomically in a single state update
     onSave(apiKeyInput.trim(), workflowIdInput.trim());
     setIsOpen(false);
@@ -40,6 +78,7 @@ export function SettingsPanel({ keys, onSave, onClear }: SettingsPanelProps) {
   const handleClear = () => {
     setApiKeyInput("");
     setWorkflowIdInput("");
+    setWorkflowVersionInput("");
     onClear();
   };
 
@@ -50,7 +89,10 @@ export function SettingsPanel({ keys, onSave, onClear }: SettingsPanelProps) {
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          syncDraftFromKeys();
+          setIsOpen(true);
+        }}
         className="fixed top-4 right-4 z-50 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white shadow-lg transition-colors hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600"
       >
         ⚙️ Settings
@@ -67,7 +109,10 @@ export function SettingsPanel({ keys, onSave, onClear }: SettingsPanelProps) {
           </h2>
           {keys.openaiApiKey && keys.workflowId && (
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                syncDraftFromKeys();
+                setIsOpen(false);
+              }}
               className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             >
               ✕
@@ -76,6 +121,33 @@ export function SettingsPanel({ keys, onSave, onClear }: SettingsPanelProps) {
         </div>
 
         <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Workflow Version
+            </label>
+            <div className="space-y-1">
+              <input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={workflowVersionInput}
+                onChange={(e) => {
+                  const nextRaw = e.target.value;
+                  setWorkflowVersionInput(nextRaw);
+                }}
+                placeholder="(Latest)"
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder-slate-500"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Active version:{" "}
+                {keys.workflowVersion === null
+                  ? "Latest"
+                  : keys.workflowVersion}
+              </p>
+            </div>
+          </div>
+
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
               OpenAI API Key
